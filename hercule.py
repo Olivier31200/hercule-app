@@ -91,7 +91,7 @@ val_spot_50 = argent_pur_50f * prix_eur_g
 val_spot_10 = argent_pur_10f * prix_eur_g
 
 data_pieces = {
-    "Pièce": ["50 Francs Hercule (27g)", "10 Francs Hercule (22.5g)"],
+    "Pièce": ["50F (27g)", "10F (22.5g)"],
     "Spot (€)": [f"{val_spot_50:.2f}", f"{val_spot_10:.2f}"],
     "-10% (Normal)": [f"{val_spot_50*0.9:.2f}", f"{val_spot_10*0.9:.2f}"],
     "🚨 -20% (Urgence)": [f"{val_spot_50*0.8:.2f}", f"{val_spot_10*0.8:.2f}"]
