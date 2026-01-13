@@ -113,8 +113,8 @@ with c2:
 st.write("### 🛒 Leboncoin (Catégorie Collection)")
 b1, b2 = st.columns(2)
 with b1:
-    st.link_button("Chercher 50 Frs", "https://www.leboncoin.fr/recherche?category=53&text=50%20francs%20hercule", use_container_width=True)
+    st.link_button("Chercher 50 Frs", "https://www.leboncoin.fr/recherche?category=30&text=50%20francs%20hercule", use_container_width=True)
 with b2:
-    st.link_button("Chercher 10 Frs", "https://www.leboncoin.fr/recherche?category=53&text=10%20francs%20hercule", use_container_width=True)
+    st.link_button("Chercher 10 Frs", "https://www.leboncoin.fr/recherche?category=30&text=10%20francs%20hercule", use_container_width=True)
 
 st.caption(f"Données temps réel. Cours utilisé : {prix_eur_g:.4f} €/g")
