@@ -1,33 +1,55 @@
-# hercule.py
+import streamlit as st
 
-def calculer_variation(prix_actuel, prix_veille):
-    """Calcule la variation en pourcentage entre deux prix."""
+# 1. CONFIGURATION DE LA PAGE
+st.set_page_config(page_title="Hercule App", page_icon="📈")
+
+def afficher_prix_avec_sticker(prix_actuel, prix_veille):
+    # Calcul de la variation
     if prix_veille == 0:
-        return 0
-    return ((prix_actuel - prix_veille) / prix_veille) * 100
-
-def generer_affichage_sticker(prix_actuel, prix_veille):
-    variation = calculer_variation(prix_actuel, prix_veille)
-    
-    # Codes couleurs pour le terminal (ANSI)
-    VERT = '\033[42m\033[37m'  # Fond vert, texte blanc
-    ROUGE = '\033[41m\033[37m' # Fond rouge, texte blanc
-    GRIS = '\033[47m\033[30m'  # Fond gris, texte noir
-    RESET = '\033[0m'          # Reset couleur
-
-    # Choix du signe et de la couleur
-    if variation > 0:
-        sticker = f"{VERT} +{variation:.2f}% {RESET}"
-    elif variation < 0:
-        sticker = f"{ROUGE} {variation:.2f}% {RESET}"
+        variation = 0
     else:
-        sticker = f"{GRIS} 0.00% {RESET}"
+        variation = ((prix_actuel - prix_veille) / prix_veille) * 100
 
-    print(f"Prix : {prix_actuel:.2e}€/g  {sticker}")
-
-# --- Test du script ---
-if __name__ == "__main__":
-    PRIX_DU_JOUR = 2.46
-    PRIX_HIER = 2.30
+    # Détermination de la couleur et du signe
+    couleur = "#28a745" if variation >= 0 else "#dc3545"  # Vert ou Rouge
+    signe = "+" if variation > 0 else ""
     
-    generer_affichage_sticker(PRIX_DU_JOUR, PRIX_HIER)
+    # Code HTML pour le sticker
+    sticker_html = f"""
+    <div style="display: flex; align-items: center; font-family: sans-serif;">
+        <span style="font-size: 24px; font-weight: bold; color: #31333F;">
+            {prix_actuel:.2f}€/g
+        </span>
+        <span style="
+            background-color: {couleur};
+            color: white;
+            padding: 2px 10px;
+            border-radius: 15px;
+            margin-left: 12px;
+            font-size: 16px;
+            font-weight: bold;
+        ">
+            {signe}{variation:.2f}%
+        </span>
+    </div>
+    """
+    st.markdown(sticker_html, unsafe_allow_html=True)
+
+# 2. DONNÉES (À modifier selon vos besoins)
+st.title("Tableau de bord Hercule")
+
+# Simulation de données
+prix_du_jour = 2.46
+prix_hier = 2.40
+
+# 3. AFFICHAGE
+st.write("### Cours actuel")
+afficher_prix_avec_sticker(prix_du_jour, prix_hier)
+
+# Espace vide
+st.divider()
+
+# Optionnel : Affichage standard Streamlit (plus simple)
+st.write("### Vue détaillée (Format Metric)")
+delta_val = prix_du_jour - prix_hier
+st.metric(label="Prix de l'or (exemple)", value="2,46 €/g", delta=f"{delta_val:.2f} €/g")
