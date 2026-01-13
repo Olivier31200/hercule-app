@@ -1,80 +1,71 @@
 import streamlit as st
 import pandas as pd
 
-# 1. CONFIGURATION DE LA PAGE
-st.set_page_config(page_title="Hercule - Cours de l'Or", layout="wide")
+# 1. CONFIGURATION
+st.set_page_config(page_title="Hercule App - Cotations", layout="centered")
 
-# Style CSS pour forcer le fond sombre si besoin et améliorer le rendu
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; }
-    div.stButton > button { width: 100%; }
-    </style>
-    """, unsafe_allow_html=True)
+# 2. DONNÉES DE BASE (Modifiez ces valeurs ici)
+prix_actuel_g = 2.46  # Le prix en €/g
+prix_veille_g = 2.40  # Pour le calcul de la tendance
+argent_pur_50fr = 27.0   # 50 Francs Hercule = 27g d'argent pur
+argent_pur_10fr = 22.5   # 10 Francs Hercule = 22.5g d'argent pur
 
-# 2. FONCTION POUR LE PRIX ET LE STICKER
-def afficher_en_tete(prix_actuel, prix_veille):
-    variation = ((prix_actuel - prix_veille) / prix_veille) * 100
-    couleur_sticker = "#28a745" if variation >= 0 else "#dc3545"
+# 3. FONCTION STICKER (Prix en blanc + Badge couleur)
+def afficher_header_prix(actuel, veille):
+    variation = ((actuel - veille) / veille) * 100
+    couleur_badge = "#28a745" if variation >= 0 else "#dc3545"
     signe = "+" if variation > 0 else ""
     
-    sticker_html = f"""
-    <div style="display: flex; align-items: center; padding: 10px 0;">
-        <span style="font-size: 32px; font-weight: bold; color: white; margin-right: 15px;">
-            {prix_actuel:.2f}€/g
+    html = f"""
+    <div style="display: flex; align-items: center; justify-content: center; background-color: #1e1e1e; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+        <span style="font-size: 30px; font-weight: bold; color: white; margin-right: 15px;">
+            {actuel:.2f}€/g
         </span>
-        <span style="
-            background-color: {couleur_sticker};
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 18px;
-            font-weight: bold;
-        ">
+        <span style="background-color: {couleur_badge}; color: white; padding: 5px 12px; border-radius: 15px; font-size: 18px; font-weight: bold;">
             {signe}{variation:.2f}%
         </span>
     </div>
     """
-    st.markdown(sticker_html, unsafe_allow_html=True)
+    st.markdown(html, unsafe_allow_html=True)
 
-# --- LOGIQUE DE L'APPLICATION ---
+# --- AFFICHAGE ---
 
-st.title("📈 Application Hercule")
+st.title("💰 Cotations Pièces Hercule")
 
-# Simulation des prix (à remplacer par vos calculs/API)
-prix_actuel_cours = 2.46
-prix_veille_cours = 2.40
+# Affichage du bandeau de prix
+afficher_header_prix(prix_actuel_g, prix_veille_g)
 
-# Affichage du prix principal
-st.subheader("Cours du jour")
-afficher_en_tete(prix_actuel_cours, prix_veille_cours)
+st.write("### Calcul des rachats (Décotes)")
 
-st.divider()
+# 4. PRÉPARATION DU TABLEAU DE COMPARAISON
+# Calculs pour 50 Francs
+valeur_50fr = argent_pur_50fr * prix_actuel_g
+moins_10_50fr = valeur_50fr * 0.90
+moins_20_50fr = valeur_50fr * 0.80
 
-# 3. TABLEAU DE COMPARAISON DES PIÈCES (Fonctionnalité restaurée)
-st.subheader("🔍 Comparaison des pièces")
+# Calculs pour 10 Francs
+valeur_10fr = argent_pur_10fr * prix_actuel_g
+moins_10_10fr = valeur_10fr * 0.90
+moins_20_10fr = valeur_10fr * 0.80
 
-# Exemple de données pour votre tableau - Modifiez les chiffres ici
 data = {
-    "Nom de la pièce": ["Napoléon 20Fr", "Krugerrand", "Souverain", "Vreneli"],
-    "Poids d'or pur (g)": [5.81, 31.10, 7.32, 5.81],
-    "Prix Estimé (€)": [
-        5.81 * prix_actuel_cours, 
-        31.10 * prix_actuel_cours, 
-        7.32 * prix_actuel_cours, 
-        5.81 * prix_actuel_cours
-    ],
-    "Variation": ["+1.2%", "+0.5%", "+0.8%", "+1.1%"]
+    "Pièce Hercule": ["50 Francs (27g pur)", "10 Francs (22.5g pur)"],
+    "Valeur Spot (€)": [f"{valeur_50fr:.2f} €", f"{valeur_10fr:.2f} €"],
+    "-10% (Rachat standard)": [f"{moins_10_50fr:.2f} €", f"{moins_10_10fr:.2f} €"],
+    "-20% (Marge haute)": [f"{moins_20_50fr:.2f} €", f"{moins_20_10fr:.2f} €"]
 }
 
 df = pd.DataFrame(data)
 
-# Affichage du tableau
-st.dataframe(df, use_container_width=True)
+# Affichage du tableau stylisé
+st.table(df)
 
-# 4. AUTRES FONCTIONNALITÉS (Graphiques, etc.)
-col1, col2 = st.columns(2)
-with col1:
-    st.info("💡 **Info :** Le prix est mis à jour toutes les 15 minutes.")
-with col2:
-    st.metric(label="Spread moyen", value="2.5%", delta="-0.2%")
+# Petit rappel du cours de la veille
+st.caption(f"Cours de référence de la veille : {prix_veille_g:.2f} €/g")
+
+# 5. ZONE DE CALCUL PERSONNALISÉ
+st.divider()
+st.write("### Calculateur rapide")
+nb_pieces = st.number_input("Nombre de pièces (50 Frs)", min_value=0, value=1)
+total = nb_pieces * moins_10_50fr
+st.success(f"Prix de rachat total (-10%) : **{total:.2f} €**")
