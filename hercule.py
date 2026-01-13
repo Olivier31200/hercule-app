@@ -6,10 +6,9 @@ import streamlit.components.v1 as components
 # 1. CONFIGURATION
 st.set_page_config(page_title="Hercule App - Live Silver", layout="centered")
 
-# 2. RÉCUPÉRATION DES PRIX RÉELS (Pour le sticker et les calculs)
-@st.cache_data(ttl=600) # Mise à jour toutes les 10 min
+# 2. RÉCUPÉRATION DES PRIX RÉELS
+@st.cache_data(ttl=600)
 def get_live_prices():
-    # On récupère l'argent en USD et en EUR
     try:
         usd_data = yf.Ticker("XAGUSD=X").history(period="2d")
         eur_data = yf.Ticker("XAGEUR=X").history(period="2d")
@@ -23,28 +22,48 @@ def get_live_prices():
         
         return prix_eur_g, prix_usd_oz, variation
     except:
-        # Valeurs de secours si Yahoo Finance est indisponible
         return 2.46, 86.00, 1.20
 
 p_eur_g, p_usd_oz, p_var = get_live_prices()
 
-# 3. HEADER AVEC DOUBLE VALEUR + STICKER
+# 3. HEADER CORRIGÉ (Prix + Sticker en haut, USD en bas)
 def afficher_double_header(eur_g, usd_oz, variation):
     couleur_badge = "#28a745" if variation >= 0 else "#dc3545"
     signe = "+" if variation > 0 else ""
     
     html = f"""
-    <div style="display: flex; flex-direction: column; align-items: center; background-color: #1e1e1e; padding: 25px; border-radius: 15px; margin-bottom: 25px; border: 1px solid #444;">
-        <div style="display: flex; align-items: center; gap: 20px;">
-            <span style="font-size: 34px; font-weight: bold; color: white;">
+    <div style="
+        background-color: #1e1e1e; 
+        padding: 20px; 
+        border-radius: 15px; 
+        margin-bottom: 25px; 
+        border: 1px solid #444;
+        text-align: center;
+    ">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 5px;">
+            <span style="
+                font-size: 36px; 
+                font-weight: bold; 
+                color: white; 
+                white-space: nowrap;
+            ">
                 {eur_g:.2f}€/g
             </span>
-            <span style="font-size: 26px; color: #aaaaaa; font-weight: 500;">
-                ${usd_oz:.2f}/oz
-            </span>
-            <span style="background-color: {couleur_badge}; color: white; padding: 4px 15px; border-radius: 20px; font-size: 18px; font-weight: bold;">
+            <span style="
+                background-color: {couleur_badge}; 
+                color: white; 
+                padding: 4px 12px; 
+                border-radius: 15px; 
+                font-size: 18px; 
+                font-weight: bold;
+                white-space: nowrap;
+            ">
                 {signe}{variation:.2f}%
             </span>
+        </div>
+        
+        <div style="font-size: 24px; color: #aaaaaa; font-weight: 500;">
+            ${usd_oz:.2f}/oz
         </div>
     </div>
     """
@@ -53,7 +72,7 @@ def afficher_double_header(eur_g, usd_oz, variation):
 # --- INTERFACE ---
 st.title("🪙 Hercule Live Tracker")
 
-# Affichage du bandeau de prix
+# Affichage du bandeau de prix réorganisé
 afficher_double_header(p_eur_g, p_usd_oz, p_var)
 
 # 4. GRAPHIQUE OFFICIEL TRADINGVIEW ($/oz)
@@ -82,7 +101,7 @@ tradingview_widget = """
 """
 components.html(tradingview_widget, height=450)
 
-# 5. GRILLE DE RACHAT (SANS INDEX)
+# 5. GRILLE DE RACHAT
 st.write("### 📋 Valeur des pièces Hercule")
 argent_pur_50fr, argent_pur_10fr = 27.0, 22.5
 val_50 = argent_pur_50fr * p_eur_g
@@ -114,5 +133,3 @@ with lb1:
     st.link_button("Chercher 50 Frs", "https://www.leboncoin.fr/recherche?category=53&text=50%20francs%20hercule", use_container_width=True)
 with lb2:
     st.link_button("Chercher 10 Frs", "https://www.leboncoin.fr/recherche?category=53&text=10%20francs%20hercule", use_container_width=True)
-
-st.caption(f"Données Yahoo Finance / TradingView. Mise à jour : {p_eur_g:.2f}€/g")
