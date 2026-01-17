@@ -6,37 +6,44 @@ import streamlit.components.v1 as components
 # 1. CONFIGURATION DE LA PAGE
 st.set_page_config(page_title="Hercule App - Live Silver", layout="centered", page_icon="🪙")
 
-# 2. RÉCUPÉRATION DES PRIX RÉELS (Mise à jour au lancement)
-@st.cache_data(ttl=300)  # Actualise les données toutes les 5 minutes maximum
+# 2. RÉCUPÉRATION DES PRIX (Version Robuste : cherche la dernière valeur connue)
+@st.cache_data(ttl=300)
 def get_live_prices():
     try:
-        # Téléchargement des tickers Argent ($) et Taux de change (€/$)
-        # On prend l'intervalle 1m pour avoir le dernier prix exact du marché
-        data = yf.download(["XAGUSD=X", "EURUSD=X"], period="2d", interval="1m", progress=False)
+        # On télécharge 5 jours de données pour être sûr de traverser les week-ends
+        # Intervalle '1h' est plus fiable que '1m' pour les valeurs historiques
+        data = yf.download(["XAGUSD=X", "EURUSD=X"], period="5d", interval="1h", progress=False)
         
-        # Prix de l'once en Dollar
-        p_usd_oz = data['Close']['XAGUSD=X'].iloc[-1]
-        # Taux de change (combien de $ pour 1€)
-        eur_usd_rate = data['Close']['EURUSD=X'].iloc[-1]
+        # On nettoie les données : on garde uniquement les lignes complètes
+        # ffill() remplit les trous, dropna() supprime si vraiment vide
+        prices = data['Close'].ffill().dropna()
         
-        # Conversion en Euro par gramme
-        # 1 once troy = 31.1034768 grammes
+        if prices.empty:
+            return 0.945, 30.50, 0.00 # Valeurs de secours si tout échoue
+
+        # On récupère la dernière ligne valide
+        last_row = prices.iloc[-1]
+        p_usd_oz = float(last_row['XAGUSD=X'])
+        eur_usd_rate = float(last_row['EURUSD=X'])
+        
+        # Calcul du prix en €/g
         p_eur_oz = p_usd_oz / eur_usd_rate
         p_eur_g = p_eur_oz / 31.1034768
         
-        # Calcul de la variation sur 24h
-        veille_usd_oz = data['Close']['XAGUSD=X'].iloc[0]
-        variation = ((p_usd_oz - veille_usd_oz) / veille_usd_oz) * 100
+        # Calcul de la variation (différence avec le premier point des 5 jours ou la veille)
+        p_ouverture = float(prices.iloc[0]['XAGUSD=X'])
+        variation = ((p_usd_oz - p_ouverture) / p_ouverture) * 100
         
         return p_eur_g, p_usd_oz, variation
-    except Exception as e:
-        # Valeurs de secours réalistes si l'API Yahoo ne répond pas
-        return 0.94, 30.50, 0.00
 
-# APPEL DES DONNÉES (Se rafraîchit à chaque exécution du script)
+    except Exception:
+        # En cas de bug réseau total, on renvoie une estimation fixe pour ne pas casser l'affichage
+        return 0.94, 30.40, 0.00
+
+# Exécution de la récupération
 prix_eur_g, prix_usd_oz, var_percent = get_live_prices()
 
-# 3. FONCTION D'AFFICHAGE DU HEADER
+# 3. AFFICHAGE DU HEADER
 def afficher_header_style(eur_g, usd_oz, variation):
     couleur_badge = "#28a745" if variation >= 0 else "#dc3545"
     signe = "+" if variation > 0 else ""
@@ -58,14 +65,13 @@ def afficher_header_style(eur_g, usd_oz, variation):
     """
     st.markdown(html_header, unsafe_allow_html=True)
 
-# --- INTERFACE UTILISATEUR ---
+# --- INTERFACE ---
 
 st.title("🪙 Hercule Live Tracker")
 
-# Affichage du bandeau de prix dynamique
 afficher_header_style(prix_eur_g, prix_usd_oz, var_percent)
 
-# 4. GRAPHIQUE TRADINGVIEW (Optionnel, dans un expander pour gagner de la place)
+# 4. GRAPHIQUE TRADINGVIEW
 with st.expander("📈 Voir le graphique en temps réel", expanded=False):
     tradingview_widget = """
     <div class="tradingview-widget-container" style="height:400px;">
@@ -73,25 +79,18 @@ with st.expander("📈 Voir le graphique en temps réel", expanded=False):
       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
       <script type="text/javascript">
       new TradingView.widget({
-        "autosize": true,
-        "symbol": "OANDA:XAGUSD",
-        "interval": "H",
-        "timezone": "Europe/Paris",
-        "theme": "dark",
-        "style": "1",
-        "locale": "fr",
-        "container_id": "tradingview_xag"
+        "autosize": true, "symbol": "OANDA:XAGUSD", "interval": "H",
+        "timezone": "Europe/Paris", "theme": "dark", "style": "1",
+        "locale": "fr", "container_id": "tradingview_xag"
       });
       </script>
     </div>
     """
     components.html(tradingview_widget, height=420)
 
-# 5. TABLEAU DES VALEURS PAR PIÈCE (MIS À JOUR EN TEMPS RÉEL)
+# 5. TABLEAU DE VALEUR DES PIÈCES
 st.write("### 📋 Valeur intrinsèque (Argent Pur)")
 
-# Calculs basés sur le titre à 900/1000e
-# 50 Francs Hercule = 30g brut (27g fin) | 10 Francs Hercule = 25g brut (22.5g fin)
 poids_50f = 27.0
 poids_10f = 22.5
 
@@ -107,7 +106,7 @@ data_pieces = {
 }
 st.dataframe(pd.DataFrame(data_pieces), hide_index=True, use_container_width=True)
 
-# 6. CALCULATEURS DE LOTS
+# 6. CALCULATEURS
 st.divider()
 st.write("### 🧮 Estimateur de rachat direct (-10%)")
 c1, c2 = st.columns(2)
@@ -117,11 +116,10 @@ with c2:
     q10 = st.number_input("Nombre de 10 Frs", min_value=0, value=0, step=1)
 
 total_rachat = (q50 * val_spot_50 * 0.9) + (q10 * val_spot_10 * 0.9)
-
 if total_rachat > 0:
     st.success(f"**Montant total estimé (Net) : {total_rachat:.2f} €**")
 
-# 7. BOUTONS VERS LEBONCOIN
+# 7. BOUTONS LBC
 st.write("### 🛒 Opportunités Leboncoin")
 b1, b2 = st.columns(2)
 with b1:
@@ -129,5 +127,4 @@ with b1:
 with b2:
     st.link_button("Rechercher 10 Frs", "https://www.leboncoin.fr/recherche?category=40&text=10%20francs%20hercule", use_container_width=True)
 
-# Footer de mise à jour
-st.caption(f"Les prix sont actualisés automatiquement. Cours actuel : {prix_eur_g:.4f} €/g.")
+st.caption(f"Dernière actualisation : {prix_eur_g:.4f} €/g. (Données persistantes en cas de fermeture des marchés)")
